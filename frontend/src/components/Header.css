@@ -1,0 +1,93 @@
+/* ====== Hiệu ứng tổng thể ====== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 40px;
+  background: linear-gradient(90deg, #8cbdf1, #00c6ff);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.6s ease forwards;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-60px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ====== Logo ====== */
+.header-logo-link {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  transition: transform 0.3s ease;
+}
+
+.header-logo-link:hover {
+  transform: scale(1.08);
+}
+
+/* ====== Menu ====== */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+/* Nút đăng nhập */
+.login-btn {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.login-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Nút đăng ký */
+.register-btn {
+  background-color: #fff;
+  color: #007bff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.register-btn:hover {
+  background-color: #e6f0ff;
+  transform: translateY(-2px);
+}
+
+.header-user {
+    /* Kích hoạt Flexbox cho container */
+    display: flex; 
+    /* Căn chỉnh các mục theo chiều dọc */
+    align-items: center; 
+    /* Thiết lập khoảng cách giữa các phần tử con */
+    gap: 15px; /* Điều chỉnh giá trị này (ví dụ: 10px, 15px, 1rem) */
+}
+
+/* Các style khác cho nút và tên người dùng (nếu có) */
+.header-username {
+    font-weight: bold;
+    color: #fff; /* Ví dụ */
+}
