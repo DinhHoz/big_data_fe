@@ -1,65 +1,71 @@
-// src/context/AuthContext.jsx (Phiên bản đầy đủ)
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import apiClient from '../services/api'; // Giả định bạn đã tạo file này
+// src/context/AuthContext.jsx
+import React, { createContext, useContext, useState, useEffect } from "react";
+import apiClient from "../services/api";
 
 const AuthContext = createContext();
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  // Trạng thái user: {id, name, email}
-  const [user, setUser] = useState(null); 
+  const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Khởi tạo: Đọc LocalStorage khi ứng dụng tải
+  const getToken = () => localStorage.getItem("jwtToken");
+
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('jwtToken');
-    
-    if (storedUser && storedToken) {
-      // 1. Phục hồi trạng thái người dùng
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
-      // 2. Token đã được lưu, nó sẽ tự động được Axios Interceptor đính kèm
+    const token = getToken();
+    const storedUser = localStorage.getItem("user");
+
+    if (token && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+      } catch (err) {
+        console.error("Lỗi parse user từ localStorage", err);
+        logout();
+      }
     }
     setIsLoading(false);
   }, []);
 
-  // Hàm đăng nhập (được gọi từ LoginForm)
   const login = async (email, password) => {
     try {
-      // Gọi API Backend
-      const response = await apiClient.post('/auth/login', { email, password });
-      
-      // Backend trả về { token, user: { id, name, email } }
-      const { token, user: userData } = response.data;
-      
-      // 🔥 LƯU TRỮ TRẠNG THÁI VÀO LOCAL STORAGE 🔥
-      localStorage.setItem('jwtToken', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      const res = await apiClient.post("/auth/login", { email, password });
+      const { token, user: userData } = res.data;
 
-      // Cập nhật trạng thái Context
+      localStorage.setItem("jwtToken", token);
+      localStorage.setItem("user", JSON.stringify(userData));
+
       setUser(userData);
       setIsAuthenticated(true);
       return true;
-    } catch (error) {
-      console.error("Login failed", error);
-      throw error; // Ném lỗi để LoginForm xử lý hiển thị thông báo
+    } catch (err) {
+      console.error("Login failed:", err);
+      throw err;
     }
   };
 
-  // Hàm đăng xuất
   const logout = () => {
-    localStorage.removeItem('jwtToken');
-    localStorage.removeItem('user');
+    localStorage.removeItem("jwtToken");
+    localStorage.removeItem("user");
     setUser(null);
     setIsAuthenticated(false);
   };
 
+  const isAdmin = user?.role === "admin";
+
+  // ← ĐÃ SỬA: Thêm getToken vào value
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated,
+      isLoading,
+      login,
+      logout,
+      isAdmin,
+      getToken
+    }}>
       {children}
     </AuthContext.Provider>
   );

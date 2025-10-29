@@ -2,28 +2,21 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-// ❌ BỎ import { BrowserRouter, Routes, Route } từ đây
-import App from './App.jsx'; // Import component App chính
+import App from './App.jsx'; 
 import './index.css';
 
-// Import AuthProvider (giả định nằm trong src/context/AuthContext.jsx)
+// 1. SỬA ĐỔI: Bỏ phần mở rộng .jsx khỏi AuthContext
+// Lý do: Đồng bộ hóa cách import và tránh lỗi phân giải của Dev Server.
 import { AuthProvider } from './context/AuthContext'; 
-
-// ❌ BỎ định nghĩa lại hàm App() ở đây
 
 const container = document.getElementById('root');
 const root = createRoot(container);
 
 root.render(
-  <React.StrictMode>
-    {/* Bọc toàn bộ ứng dụng bằng AuthProvider */}
-    <AuthProvider> 
-      <App />
-    </AuthProvider>
-  </React.StrictMode>
+  <React.StrictMode>
+    {/* 2. Bọc toàn bộ ứng dụng bằng AuthProvider để useAuth hoạt động */}
+    <AuthProvider> 
+      <App />
+    </AuthProvider>
+  </React.StrictMode>
 );
-
-/* ❌ BỎ các lệnh render trùng lặp hoặc sai vị trí 
-ReactDOM.createRoot(document.getElementById('root')).render(...)
-createRoot(document.getElementById('root')).render(<App />); 
-*/

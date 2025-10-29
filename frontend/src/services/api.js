@@ -1,29 +1,32 @@
+// src/services/api.js (Logic PHẢI CÓ)
 import axios from "axios";
 
-// 1. Tạo một instance Axios
 const apiClient = axios.create({
-  // Thay thế bằng URL Backend của bạn (đọc từ .env nếu cần)
-  baseURL: "http://localhost:4000/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: "http://localhost:4000/api", // Thay đổi nếu cần
+  headers: { "Content-Type": "application/json" },
 });
 
-// 2. Thêm Interceptor cho Request
-// Interceptor này sẽ chạy trước MỌI yêu cầu đi ra.
-apiClient.interceptors.request.use(
-  (config) => {
-    // Lấy token từ LocalStorage hoặc nơi bạn lưu trữ
-    const token = localStorage.getItem("jwtToken");
+// ⭐ Interceptor: Tự động đính kèm Token ⭐
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("jwtToken");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-    // Nếu có token, đính kèm vào header Authorization
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
+// Tùy chọn: Xử lý lỗi 401 tự động logout
+apiClient.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (error.response && error.response.status === 401) {
+      // Nếu server báo 401, token có thể hết hạn/không hợp lệ
+      console.warn("Phiên đăng nhập hết hạn. Tự động đăng xuất.");
+      // Chuyển hướng đến trang đăng nhập (Cần dùng window.location hoặc thư viện khác)
+      // localStorage.removeItem('jwtToken');
+      // localStorage.removeItem('user');
+      // window.location.href = '/login';
+    }
     return Promise.reject(error);
   }
 );

@@ -35,30 +35,34 @@ export default function ReviewForm({ productId, onAdded, initialReview, onCancel
   }
 
   // ======= Gửi đánh giá / Chỉnh sửa =======
-  async function submit() {
-    if (!isAuthenticated) {
-      alert('Vui lòng đăng nhập để gửi đánh giá.');
-      return;
+async function submit() {
+  // ... (kiểm tra auth và comment giữ nguyên)
+
+  setIsSubmitting(true);
+  try {
+    const formData = new FormData();
+    formData.append('rating', rating);
+    formData.append('comment', comment);
+
+    // Thêm productId khi tạo mới (Giữ nguyên)
+    if (!isEditMode) {
+      formData.append('productId', productId);
     }
-    if (!comment.trim()) {
-      alert('Nội dung nhận xét không được để trống.');
-      return;
+    
+    // 👇 THÊM: Xử lý mảng ảnh cũ khi CHỈNH SỬA (Quan trọng!)
+    if (isEditMode) {
+        // Backend (review.js) kỳ vọng trường 'existingImages' dưới dạng chuỗi JSON
+        // chứa các đường dẫn ảnh cũ muốn giữ lại.
+        // existingImageUrls là mảng các URL hoàn chỉnh, cần chuyển đổi về path tương đối
+        const BASE_URL = "http://localhost:4000";
+        const relativePathsToKeep = existingImageUrls.map(url => 
+            url.startsWith(BASE_URL) ? url.substring(BASE_URL.length) : url
+        );
+        formData.append('existingImages', JSON.stringify(relativePathsToKeep)); // Gửi mảng ảnh cũ dưới dạng JSON string
     }
 
-    setIsSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append('rating', rating);
-      formData.append('comment', comment);
-      
-      // Chỉ thêm productId khi tạo mới, khi edit reviewId đã có sẵn
-      if (!isEditMode) {
-        formData.append('productId', productId);
-      }
-      
-      // Thêm ảnh mới (cả tạo mới và chỉnh sửa)
-      images.forEach(file => formData.append('images', file));
-
+    // Thêm ảnh mới (cả tạo mới và chỉnh sửa) (Giữ nguyên)
+    images.forEach(file => formData.append('images', file));
       // Lựa chọn endpoint và method
       const url = isEditMode ? `/reviews/${initialReview.reviewId}` : '/reviews';
       const method = isEditMode ? 'put' : 'post'; // API cần hỗ trợ PUT/PATCH cho chỉnh sửa

@@ -1,36 +1,40 @@
+// src/components/RegisterForm.jsx (ĐÃ HOÀN CHỈNH)
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
-import apiClient from "../services/api";
+import { Link, useNavigate } from "react-router-dom"; 
+import apiClient from "../services/api"; // Giả định
 
 const RegisterForm = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    email: "", 
+    password: "", 
+    isAdmin: false // ✅ State mới cho Admin
+  }); 
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
 
-  const navigate = useNavigate(); // Khởi tạo
+  const navigate = useNavigate(); 
 
+  const handleChange = (e) => {
+    // Xử lý cả input thường và checkbox
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
+  };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
     setIsError(false);
 
     try {
-      const response = await apiClient.post("/auth/register", {
-        name,
-        email,
-        password,
-      });
+      // ✅ Gửi cả formData (bao gồm isAdmin) lên backend
+      const response = await apiClient.post("/auth/register", formData); 
 
       setMessage(response.data.message || "Đăng ký thành công!");
       
-      // Xóa form
-      setName("");
-      setEmail("");
-      setPassword("");
+      // Xóa form và chuyển hướng
+      setFormData({ name: "", email: "", password: "", isAdmin: false });
 
-      // Chuyển hướng sau 1.5s
       setTimeout(() => {
         navigate("/login");
       }, 1500);
@@ -41,11 +45,12 @@ const RegisterForm = () => {
     }
   };
 
+  // UI phần Register Form (Sử dụng style từ file gốc của bạn)
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #8cbdf1 0%, #00c6ff 100%)",
+        background: "#8cbdf1",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -56,68 +61,40 @@ const RegisterForm = () => {
         onSubmit={handleSubmit}
         style={{
           background: "#fff",
-          borderRadius: 16,
-          padding: "40px 35px",
+          padding: 40,
+          borderRadius: 12,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
           width: "100%",
           maxWidth: 400,
-          boxShadow: "0 8px 30px rgba(0,0,0,0.1)",
           textAlign: "center",
         }}
       >
-        <h2
-          style={{
-            marginBottom: 20,
-            color: "#007bff",
-            fontWeight: 700,
-            fontSize: 28,
-          }}
-        >
-          Đăng Ký Tài Khoản
-        </h2>
-
+        <h2>Đăng Ký Tài Khoản</h2>
+        
         {message && (
-          <p
-            style={{
-              color: isError ? "red" : "#28a745",
-              marginBottom: 12,
-              fontSize: 14,
-              fontWeight: 600,
+          <p 
+            style={{ 
+              color: isError ? "red" : "green", 
+              marginBottom: 15, 
+              fontWeight: 500 
             }}
           >
-            {isError ? "Lỗi: " : "Thành công: "} {message}
+            {message}
           </p>
         )}
 
-        <div style={{ marginBottom: 15, textAlign: "left" }}>
-          <label style={{ fontWeight: 500, fontSize: 14 }}>Họ và tên</label>
+        <div style={{ marginBottom: 20, textAlign: "left" }}>
+          <label style={{ fontWeight: 500, color: "#333" }}>Họ Tên</label>
           <input
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nhập họ tên"
+            name="name"
+            placeholder="Tên của bạn"
+            value={formData.name}
+            onChange={handleChange}
             required
             style={{
               width: "100%",
-              padding: "10px 12px",
-              marginTop: 6,
-              border: "1px solid #ccc",
-              borderRadius: 8,
-              fontSize: 15,
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 15, textAlign: "left" }}>
-          <label style={{ fontWeight: 500, fontSize: 14 }}>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Nhập email của bạn"
-            required
-            style={{
-              width: "100%",
-              padding: "10px 12px",
+              padding: 12,
               marginTop: 6,
               border: "1px solid #ccc",
               borderRadius: 8,
@@ -127,16 +104,17 @@ const RegisterForm = () => {
         </div>
 
         <div style={{ marginBottom: 20, textAlign: "left" }}>
-          <label style={{ fontWeight: 500, fontSize: 14 }}>Mật khẩu</label>
+          <label style={{ fontWeight: 500, color: "#333" }}>Email</label>
           <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Tạo mật khẩu"
+            type="email"
+            name="email"
+            placeholder="example@email.com"
+            value={formData.email}
+            onChange={handleChange}
             required
             style={{
               width: "100%",
-              padding: "10px 12px",
+              padding: 12,
               marginTop: 6,
               border: "1px solid #ccc",
               borderRadius: 8,
@@ -144,6 +122,42 @@ const RegisterForm = () => {
             }}
           />
         </div>
+
+        <div style={{ marginBottom: 30, textAlign: "left" }}>
+          <label style={{ fontWeight: 500, color: "#333" }}>Mật khẩu</label>
+          <input
+            type="password"
+            name="password"
+            placeholder="Mật khẩu (ít nhất 6 ký tự)"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            minLength={6}
+            style={{
+              width: "100%",
+              padding: 12,
+              marginTop: 6,
+              border: "1px solid #ccc",
+              borderRadius: 8,
+              fontSize: 15,
+            }}
+          />
+        </div>
+        
+        {/* ✅ INPUT ĐĂNG KÝ ADMIN (DEV/TEST ONLY)
+        <div style={{ marginBottom: 30, textAlign: 'left' }}>
+          <label style={{ display: 'flex', alignItems: 'center', fontSize: 14, color: '#555', cursor: 'pointer' }}>
+            <input 
+                type="checkbox" 
+                name="isAdmin" 
+                checked={formData.isAdmin} 
+                onChange={handleChange} 
+                style={{ marginRight: 10, transform: 'scale(1.2)' }}
+            />
+            Đăng ký với quyền **Admin** (Chỉ dùng cho môi trường Dev/Test)
+          </label>
+        </div> */}
+
 
         <button
           type="submit"
@@ -181,13 +195,9 @@ const RegisterForm = () => {
           Đã có tài khoản?{" "}
           <Link
             to="/login"
-            style={{
-              color: "#007bff",
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+            style={{ color: "#007bff", textDecoration: "none", fontWeight: 600 }}
           >
-            Đăng nhập ngay
+            Đăng nhập
           </Link>
         </p>
       </form>

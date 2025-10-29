@@ -19,18 +19,32 @@ export default function ProductDetail() {
     return `${BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
   };
 
-  async function load() {
+  // ⭐️ Hàm chỉ tải chi tiết sản phẩm (dùng để cập nhật meta data)
+  async function loadProductMeta() {
     try {
-      // Tải chi tiết sản phẩm
       const p = await api.get(`/products/${id}`);
       setProduct(p.data);
+    } catch (err) {
+      console.error("❌ Lỗi tải chi tiết sản phẩm:", err);
+    }
+  }
 
-      // Tải danh sách đánh giá
+  // ⭐️ Hàm chỉ tải danh sách đánh giá
+  async function loadReviews() {
+    try {
       const r = await api.get(`/reviews/product/${id}`);
       setReviews(r.data.reviews || []);
-      
-      // Đặt lại trạng thái chỉnh sửa sau khi tải lại
-      setIsEditingReviewId(null); 
+    } catch (err) {
+      console.error("❌ Lỗi tải danh sách đánh giá:", err);
+    }
+  }
+
+  // Hàm load ban đầu (tải cả 2)
+  async function load() {
+    try {
+      // Tải chi tiết sản phẩm VÀ danh sách đánh giá song song
+      await Promise.all([loadProductMeta(), loadReviews()]);
+      setIsEditingReviewId(null); // Đặt lại trạng thái chỉnh sửa sau khi tải lại toàn bộ
     } catch (err) {
       console.error("❌ Lỗi tải dữ liệu:", err);
     }
@@ -40,14 +54,56 @@ export default function ProductDetail() {
     load();
   }, [id]);
 
+  // Hàm xử lý cập nhật state reviews sau khi POST/PUT thành công
+  function handleReviewUpdate(newReviewData) {
+    // res.data có cấu trúc { message, review }
+    const { review, message } = newReviewData;
+
+    // Fallback: nếu backend không trả về review object, phải tải lại toàn bộ
+    if (!review) {
+      console.warn("API không trả về đối tượng review đầy đủ, đang tải lại toàn bộ...");
+      load();
+      return;
+    }
+
+    // ⭐ CẬP NHẬT STATE REVIEWS TỐI ƯU (KHÔNG GỌI API) ⭐
+    setReviews(prevReviews => {
+      // Kiểm tra xem đây là thao tác TẠO MỚI (POST) hay CẬP NHẬT (PUT)
+      // Dùng message từ backend để phân biệt
+      const isNew = message.includes("gửi thành công") || !prevReviews.some(r => r.reviewId === review.reviewId);
+      
+      if (isNew) {
+        // THAO TÁC POST: Thêm review mới lên đầu danh sách
+        return [review, ...prevReviews];
+      } else {
+        // THAO TÁC PUT: Thay thế review cũ bằng review mới
+        return prevReviews.map(r =>
+          r.reviewId === review.reviewId ? review : r
+        );
+      }
+    });
+
+    // Tắt chế độ chỉnh sửa sau khi cập nhật thành công (chỉ áp dụng cho PUT)
+    if (isEditingReviewId) {
+      setIsEditingReviewId(null);
+    }
+
+    // ⭐ CHỈ Tải lại meta data để cập nhật avgRating/totalReviews (Tối ưu)
+    loadProductMeta();
+  }
+
   // Hàm xử lý xóa đánh giá
   async function handleDelete(reviewId) {
     if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này không?")) return;
-    
+
     try {
       await api.delete(`/reviews/${reviewId}`);
       alert("✅ Xóa đánh giá thành công!");
-      load(); // Tải lại danh sách đánh giá
+      
+      // ⭐ Cập nhật state Reviews và Meta sau khi xóa thành công (Tối ưu)
+      setReviews(prevReviews => prevReviews.filter(r => r.reviewId !== reviewId));
+      loadProductMeta(); // Chỉ tải lại Product Meta để cập nhật avgRating/totalReviews
+      
     } catch (err) {
       console.error("❌ Lỗi xóa review:", err.response || err);
       alert(err.response?.data?.error || 'Lỗi xóa đánh giá, vui lòng thử lại.');
@@ -289,14 +345,15 @@ export default function ProductDetail() {
 
                 {/* Form chỉnh sửa hiện ra ngay bên dưới review */}
                 {isEditingReviewId === rv.reviewId && (
-                    <div style={{ marginTop: 15, borderTop: '1px solid #ddd', paddingTop: 10 }}>
-                        <ReviewForm 
-                            productId={id} 
-                            initialReview={reviewToEdit} 
-                            onAdded={load} 
-                            onCancelEdit={() => setIsEditingReviewId(null)}
-                        />
-                    </div>
+                  <div style={{ marginTop: 15, borderTop: '1px solid #ddd', paddingTop: 10 }}>
+                    <ReviewForm
+                      productId={id}
+                      initialReview={reviewToEdit}
+                      // ⭐️ Đã SỬA: Thay load bằng handleReviewUpdate để cập nhật state reviews tức thì
+                      onAdded={handleReviewUpdate} 
+                      onCancelEdit={() => setIsEditingReviewId(null)}
+                    />
+                  </div>
                 )}
 
                 {/* Hình ảnh đánh giá */}
@@ -361,7 +418,7 @@ export default function ProductDetail() {
           }}
         >
           {/* Chỉ hiện form tạo mới nếu KHÔNG CÓ review nào đang được chỉnh sửa */}
-          {!isEditingReviewId && <ReviewForm productId={id} onAdded={load} />}
+          {!isEditingReviewId && <ReviewForm productId={id} onAdded={handleReviewUpdate} />}
           {isEditingReviewId && (
             <p style={{ color: '#007bff' }}>
               Bạn đang chỉnh sửa đánh giá. Hoàn tất hoặc Hủy bỏ để thêm đánh giá mới.

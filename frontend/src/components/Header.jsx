@@ -1,30 +1,39 @@
+// src/components/Header.jsx
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // 👈 Dùng Context
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Header.css";
 
 const Header = () => {
-  const { user, isAuthenticated, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout(); // Xóa token & user trong localStorage
-    navigate("/login"); // Chuyển hướng về trang đăng nhập
-  };
+  const { user, isAuthenticated, logout, isAdmin } = useAuth();
 
   return (
     <header className="header">
-      {/* Logo */}
       <div className="header-logo">
         <Link to="/" className="header-logo-link">
           PhoneZone
         </Link>
       </div>
 
-      {/* Menu bên phải */}
       <nav className="header-nav">
-        {!isAuthenticated ? (
-          // Nếu chưa đăng nhập
+        {isAuthenticated ? (
+          <>
+            {isAdmin && (
+              <>
+                <Link to="/admin/products" className="header-btn admin-btn">
+                  🛒 Quản lý sản phẩm
+                </Link>
+                <Link to="/admin/reviews" className="header-btn admin-btn">
+                  💬 Quản lý phản hồi
+                </Link>
+              </>
+            )}
+            <span className="user-name">👋 {user?.name}</span>
+            <button onClick={logout} className="header-btn logout-btn">
+              Đăng xuất
+            </button>
+          </>
+        ) : (
           <>
             <Link to="/login" className="header-btn login-btn">
               Đăng nhập
@@ -33,14 +42,6 @@ const Header = () => {
               Đăng ký
             </Link>
           </>
-        ) : (
-          // Nếu đã đăng nhập
-          <div className="header-user">
-            <span className="header-username">👋 Xin chào, {user?.name}</span>
-            <button onClick={handleLogout} className="header-btn logout-btn">
-              Đăng xuất
-            </button>
-          </div>
         )}
       </nav>
     </header>
