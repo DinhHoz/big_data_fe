@@ -157,7 +157,7 @@ const ProductForm = ({ product = null, onClose, onSaveSuccess }) => {
                 />
 
                 {/* ⭐ HÌNH ẢNH: URL/Đường dẫn ảnh cũ ⭐ */}
-                <label>Đường dẫn ảnh (URL hoặc ảnh cũ):</label>
+                <label>Đường dẫn ảnh (URL):</label>
                 <input 
                     type="text" 
                     value={imageUrl} 
@@ -165,7 +165,7 @@ const ProductForm = ({ product = null, onClose, onSaveSuccess }) => {
                         setImageUrl(e.target.value);
                         setSelectedFile(null); // Khi nhập URL, ưu tiên URL
                     }}
-                    placeholder="Dán URL ảnh hoặc xem ảnh cũ"
+                    placeholder="Dán URL ảnh "
                     style={{ width: '100%', padding: '8px' }}
                 />
                 {imageUrl && !selectedFile && (

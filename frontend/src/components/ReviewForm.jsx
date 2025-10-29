@@ -1,77 +1,75 @@
-// src/components/ReviewForm.jsx
 import React, { useState } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function ReviewForm({ productId, onAdded, initialReview, onCancelEdit }) {
-  // Nếu có initialReview (chế độ chỉnh sửa) thì dùng giá trị cũ
   const [rating, setRating] = useState(initialReview?.rating || 5);
   const [comment, setComment] = useState(initialReview?.comment || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [images, setImages] = useState([]); // File list for new uploads
-  // Lưu URL ảnh cũ để hiển thị trong chế độ chỉnh sửa (nếu có)
-  const [existingImageUrls] = useState(initialReview?.images?.map(path => {
-    if (path.startsWith("http")) return path;
-    const BASE_URL = "http://localhost:4000";
-    return `${BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
-  }) || []);
-  const [previewUrls, setPreviewUrls] = useState([]); // URLs for new uploads
+  const [images, setImages] = useState([]);
+  const [existingImageUrls] = useState(
+    initialReview?.images?.map(path => {
+      const BASE_URL = "http://localhost:4000";
+      if (path.startsWith("http")) return path;
+      return `${BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
+    }) || []
+  );
+  const [previewUrls, setPreviewUrls] = useState([]);
 
   const { isAuthenticated, user } = useAuth();
-  
-  // Xác định chế độ: Chỉnh sửa (true) hay Tạo mới (false)
   const isEditMode = !!initialReview;
+
+  const displayUserName = isEditMode
+    ? initialReview.userName || user?.name || "Bạn"
+    : user?.name || "Bạn";
 
   // ======= Xử lý chọn ảnh =======
   function handleImageChange(e) {
     const files = Array.from(e.target.files);
-    if (files.length + existingImageUrls.length > 5) {
-      alert(`Tổng cộng tối đa 5 ảnh (đã có ${existingImageUrls.length} ảnh cũ). Bạn chỉ được chọn thêm tối đa ${5 - existingImageUrls.length} ảnh.`);
-      e.target.value = null; // Xóa file đã chọn
+    const totalImages = files.length + existingImageUrls.length;
+    if (totalImages > 5) {
+      alert(`Tổng cộng tối đa 5 ảnh. Bạn đã có ${existingImageUrls.length} ảnh cũ, chỉ được thêm tối đa ${5 - existingImageUrls.length} ảnh.`);
+      e.target.value = null;
       return;
     }
     setImages(files);
     setPreviewUrls(files.map(f => URL.createObjectURL(f)));
   }
 
-  // ======= Gửi đánh giá / Chỉnh sửa =======
-async function submit() {
-  // ... (kiểm tra auth và comment giữ nguyên)
-
-  setIsSubmitting(true);
-  try {
-    const formData = new FormData();
-    formData.append('rating', rating);
-    formData.append('comment', comment);
-
-    // Thêm productId khi tạo mới (Giữ nguyên)
-    if (!isEditMode) {
-      formData.append('productId', productId);
+  // ======= Gửi / Cập nhật đánh giá =======
+  async function submit() {
+    if (!comment.trim()) {
+      alert("Vui lòng nhập bình luận.");
+      return;
     }
-    
-    // 👇 THÊM: Xử lý mảng ảnh cũ khi CHỈNH SỬA (Quan trọng!)
-    if (isEditMode) {
-        // Backend (review.js) kỳ vọng trường 'existingImages' dưới dạng chuỗi JSON
-        // chứa các đường dẫn ảnh cũ muốn giữ lại.
-        // existingImageUrls là mảng các URL hoàn chỉnh, cần chuyển đổi về path tương đối
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('rating', rating);
+      formData.append('comment', comment);
+
+      if (!isEditMode) {
+        formData.append('productId', productId);
+      }
+
+      if (isEditMode) {
         const BASE_URL = "http://localhost:4000";
-        const relativePathsToKeep = existingImageUrls.map(url => 
-            url.startsWith(BASE_URL) ? url.substring(BASE_URL.length) : url
+        const relativePathsToKeep = existingImageUrls.map(url =>
+          url.startsWith(BASE_URL) ? url.substring(BASE_URL.length) : url
         );
-        formData.append('existingImages', JSON.stringify(relativePathsToKeep)); // Gửi mảng ảnh cũ dưới dạng JSON string
-    }
+        formData.append('existingImages', JSON.stringify(relativePathsToKeep));
+      }
 
-    // Thêm ảnh mới (cả tạo mới và chỉnh sửa) (Giữ nguyên)
-    images.forEach(file => formData.append('images', file));
-      // Lựa chọn endpoint và method
+      images.forEach(file => formData.append('images', file));
+
       const url = isEditMode ? `/reviews/${initialReview.reviewId}` : '/reviews';
-      const method = isEditMode ? 'put' : 'post'; // API cần hỗ trợ PUT/PATCH cho chỉnh sửa
+      const method = isEditMode ? 'put' : 'post';
 
       const res = await api[method](url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      // Xóa dữ liệu form (chỉ khi tạo mới)
       if (!isEditMode) {
         setComment('');
         setRating(5);
@@ -79,11 +77,11 @@ async function submit() {
         setPreviewUrls([]);
       }
 
-      alert(`🎉 Đánh giá của bạn đã được ${isEditMode ? 'cập nhật' : 'gửi'} thành công!`);
-      onAdded && onAdded(res.data);
+      alert(`Đánh giá đã được ${isEditMode ? 'cập nhật' : 'gửi'} thành công!`);
+      onAdded && onAdded(res.data.review || res.data);
     } catch (err) {
-      console.error('❌ Lỗi gửi/cập nhật review:', err.response || err);
-      alert(err.response?.data?.error || `Lỗi ${isEditMode ? 'cập nhật' : 'gửi'} đánh giá, vui lòng thử lại.`);
+      console.error('Lỗi gửi/cập nhật review:', err.response || err);
+      alert(err.response?.data?.error || `Lỗi ${isEditMode ? 'cập nhật' : 'gửi'} đánh giá.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -91,16 +89,20 @@ async function submit() {
 
   if (!isAuthenticated) {
     return (
-      <div
-        style={{
-          marginTop: 8,
-          padding: 15,
-          border: '1px dashed orange',
-          textAlign: 'center',
-        }}
-      >
+      <div style={{
+        marginTop: 12,
+        padding: 20,
+        border: '1px dashed #ffa94d',
+        textAlign: 'center',
+        borderRadius: 8,
+        background: '#fff8e1'
+      }}>
         <p>
-          ⚠️ Bạn cần <a href="/login">đăng nhập</a> để gửi đánh giá sản phẩm này.
+          Bạn cần{' '}
+          <a href="/login" style={{ color: '#007bff', textDecoration: 'underline' }}>
+            đăng nhập
+          </a>{' '}
+          để gửi đánh giá.
         </p>
       </div>
     );
@@ -109,141 +111,232 @@ async function submit() {
   return (
     <div
       style={{
-        marginTop: 8,
-        padding: 15,
-        border: '1px solid #ccc',
-        borderRadius: 5,
-        backgroundColor: isEditMode ? '#fff3cd' : '#fff', // Màu nền khác khi chỉnh sửa
+        marginTop: 16,
+        padding: 20,
+        borderRadius: 10,
+        backgroundColor: 'white',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        maxWidth: 600,
+        marginInline: 'auto'
       }}
     >
-      <h3>{isEditMode ? `Chỉnh sửa đánh giá của bạn (ID: ${initialReview.reviewId})` : `Viết đánh giá của bạn`} (Đăng nhập là: {user?.name})</h3>
+      <h3
+        style={{
+          marginBottom: 16,
+          fontSize: '1.25em',
+          color: '#333',
+          borderBottom: '2px solid #007bff',
+          paddingBottom: 6
+        }}
+      >
+        {isEditMode ? ' Chỉnh sửa đánh giá' : ' Viết đánh giá của bạn'}{' '}
+        <span style={{ fontSize: '0.9em', color: '#666' }}>
+          – <strong>{displayUserName}</strong>
+        </span>
+      </h3>
 
       {/* Rating */}
-      <div>
-        <label>Đánh giá sao: </label>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontWeight: 500, display: 'block', marginBottom: 6 }}>
+          Đánh giá sao:
+        </label>
         <select
           value={rating}
           onChange={(e) => setRating(+e.target.value)}
           disabled={isSubmitting}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 6,
+            border: '1px solid #ccc',
+            fontSize: '1em',
+            cursor: 'pointer'
+          }}
         >
           {[5, 4, 3, 2, 1].map((n) => (
-            <option key={n} value={n}>
-              {n} sao
-            </option>
+            <option key={n} value={n}>{'⭐'.repeat(n)}</option>
           ))}
         </select>
       </div>
 
       {/* Comment */}
-      <div style={{ marginTop: 10 }}>
+      <div style={{ marginBottom: 16 }}>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={4}
-          cols={60}
-          placeholder="Viết nhận xét chi tiết..."
+          placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
           disabled={isSubmitting}
-          style={{ width: '100%', boxSizing: 'border-box' }}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            borderRadius: 8,
+            border: '1px solid #ccc',
+            fontSize: '1em',
+            boxSizing: 'border-box',
+            outline: 'none',
+            resize: 'vertical',
+          }}
         />
       </div>
 
       {/* Upload ảnh */}
-      <div style={{ marginTop: 10 }}>
-        <label>Ảnh minh họa (tối đa 5 ảnh, **chỉ chọn thêm ảnh mới**): </label>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontWeight: 500, display: 'block', marginBottom: 6 }}>
+          Ảnh minh họa{' '}
+          <span style={{ fontWeight: 'normal', color: '#888' }}>
+            (tối đa 5 ảnh, còn lại {5 - existingImageUrls.length})
+          </span>
+        </label>
         <input
           type="file"
           multiple
           accept="image/*"
           onChange={handleImageChange}
           disabled={isSubmitting}
-          // Reset input file sau khi chọn
-          key={images.length} 
+          key={images.length + existingImageUrls.length}
+          style={{
+            padding: '8px',
+            border: '1px dashed #aaa',
+            borderRadius: 6,
+            width: '100%',
+            backgroundColor: '#fdfdfd',
+            cursor: 'pointer'
+          }}
         />
-        {isEditMode && <p style={{fontSize: 12, color: '#666'}}>* Ảnh cũ sẽ được giữ lại. Nếu muốn xóa ảnh cũ, bạn cần thao tác trên backend hoặc thiết kế thêm giao diện.</p>}
       </div>
 
-      {/* Preview ảnh (Ảnh cũ + Ảnh mới) */}
+      {/* Preview ảnh */}
       {(existingImageUrls.length > 0 || previewUrls.length > 0) && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-            {/* Ảnh cũ */}
-            {existingImageUrls.map((src, i) => (
-                <div
-                    key={`old-${i}`}
-                    style={{
-                        width: 80,
-                        height: 80,
-                        border: '1px solid #007bff', // Dễ phân biệt
-                        borderRadius: 5,
-                        overflow: 'hidden',
-                        position: 'relative',
-                    }}
-                >
-                    <img
-                        src={src}
-                        alt={`old-preview-${i}`}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                    <span style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(0,123,255,0.7)', color: 'white', fontSize: 10, padding: '2px 4px', borderRadius: '0 0 0 5px' }}>Cũ</span>
-                </div>
-            ))}
-            {/* Ảnh mới */}
-          {previewUrls.map((src, i) => (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          {/* Ảnh cũ */}
+          {existingImageUrls.map((src, i) => (
             <div
-              key={`new-${i}`}
+              key={`old-${i}`}
               style={{
-                width: 80,
-                height: 80,
-                border: '1px solid #ccc',
-                borderRadius: 5,
+                width: 90,
+                height: 90,
+                borderRadius: 10,
                 overflow: 'hidden',
+                border: '2px solid #007bff',
                 position: 'relative',
               }}
             >
               <img
                 src={src}
-                alt={`new-preview-${i}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                alt={`Ảnh cũ ${i + 1}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transition: 'transform 0.2s ease',
+                }}
               />
-              <span style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(220,53,69,0.7)', color: 'white', fontSize: 10, padding: '2px 4px', borderRadius: '0 0 0 5px' }}>Mới</span>
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  background: 'rgba(0,123,255,0.85)',
+                  color: 'white',
+                  fontSize: '0.7em',
+                  padding: '2px 6px',
+                  borderRadius: '0 6px 0 0',
+                }}
+              >
+                Cũ
+              </span>
+            </div>
+          ))}
 
+          {/* Ảnh mới */}
+          {previewUrls.map((src, i) => (
+            <div
+              key={`new-${i}`}
+              style={{
+                width: 90,
+                height: 90,
+                borderRadius: 10,
+                overflow: 'hidden',
+                border: '2px dashed #28a745',
+                position: 'relative',
+              }}
+            >
+              <img
+                src={src}
+                alt={`Ảnh mới ${i + 1}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  background: 'rgba(40,167,69,0.9)',
+                  color: 'white',
+                  fontSize: '0.7em',
+                  padding: '2px 6px',
+                  borderRadius: '0 6px 0 0',
+                }}
+              >
+                Mới
+              </span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Submit */}
-      <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+      {/* Nút hành động */}
+      <div style={{ display: 'flex', gap: 12 }}>
         <button
           onClick={submit}
           disabled={isSubmitting || !comment.trim()}
           style={{
-            padding: '8px 15px',
-            backgroundColor: isEditMode ? '#28a745' : '#007bff', // Màu xanh lá cho Edit
+            flex: 1,
+            padding: '10px 16px',
+            backgroundColor: isEditMode ? '#28a745' : '#007bff',
             color: 'white',
             border: 'none',
-            borderRadius: 4,
+            borderRadius: 8,
+            fontSize: '1em',
             cursor: 'pointer',
+            opacity: (isSubmitting || !comment.trim()) ? 0.7 : 1,
+            transition: 'background 0.3s ease',
           }}
         >
-          {isSubmitting ? `Đang ${isEditMode ? 'cập nhật' : 'gửi'}...` : (isEditMode ? 'Cập Nhật Đánh Giá' : 'Gửi Đánh Giá')}
+          {isSubmitting
+            ? `Đang ${isEditMode ? 'cập nhật' : 'gửi'}...`
+            : (isEditMode ? ' Cập Nhật' : ' Gửi Đánh Giá')}
         </button>
 
-        {/* Nút Hủy (chỉ hiện khi đang chỉnh sửa) */}
         {isEditMode && (
-            <button
-                onClick={onCancelEdit}
-                disabled={isSubmitting}
-                style={{
-                    padding: '8px 15px',
-                    backgroundColor: '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                }}
-            >
-                Hủy
-            </button>
+          <button
+            onClick={onCancelEdit}
+            disabled={isSubmitting}
+            style={{
+              flex: 0.6,
+              padding: '10px 16px',
+              backgroundColor: '#6c757d',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: '1em',
+              cursor: 'pointer',
+              transition: 'background 0.3s ease',
+            }}
+          >
+            ❌ Hủy
+          </button>
         )}
       </div>
     </div>

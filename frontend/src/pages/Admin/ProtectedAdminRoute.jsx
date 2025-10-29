@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext'; 
 // Giả định component Header nằm ở '../components/Hader'
-
+import Header from '../../components/Header'; // ĐÚNG
 // Component Layout cơ bản (để giữ bố cục khi loading/error)
 const Layout = ({ children }) => {
     // Lưu ý: Bạn nên thay thế Header bằng component Header thực tế của mình

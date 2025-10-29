@@ -1,93 +1,116 @@
 // src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';  // ✅ đúng
+import { useAuth } from './context/AuthContext';
 
-// ✅ Các trang & component
-import LoginForm from './components/LoginForm';  // ✅ đúng
-import RegisterForm from './components/RegisterForm';  // ✅ đúng
-import ProductManagement from './pages/Admin/ProductManagement';  // SỬA: Bỏ .jsx
-import ProtectedAdminRoute from './pages/Admin/ProtectedAdminRoute';  // SỬA: Bỏ .jsx
-// ✅ Layout đơn giản cho trang người dùng
-const HomeContent = () => {
-  const { user, logout } = useAuth();
+// === IMPORT TRANG ===
+import LoginForm from './components/LoginForm';
+import RegisterForm from './components/RegisterForm';
+import ProductList from './pages/ProductList';
+import ProductDetail from './pages/ProductDetail'; // ĐÃ THÊM
+import ProductManagement from './pages/Admin/ProductManagement';
+import ProtectedAdminRoute from './pages/Admin/ProtectedAdminRoute';
 
-  return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h2>Xin chào, {user?.name}!</h2>
-      <p>Email: {user?.email}</p>
-      <p>Vai trò: <strong>{user?.role}</strong></p>
+// === IMPORT HEADER ===
+import Header from './components/Header';
 
-      <button
-        onClick={logout}
-        style={{
-          padding: '10px 15px',
-          backgroundColor: 'gray',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        Đăng Xuất
-      </button>
-
-      {/* Nếu là admin thì hiển thị link đến trang quản lý */}
-      {user?.role?.toLowerCase() === 'admin' && (
-        <div style={{ marginTop: '20px' }}>
-          <a
-            href="/admin"
-            style={{
-              padding: '10px 15px',
-              backgroundColor: '#2ecc71',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '6px',
-            }}
-          >
-            👉 Vào Trang Quản Lý Sản Phẩm
-          </a>
-        </div>
-      )}
+// === TRANG ĐĂNG NHẬP / ĐĂNG KÝ (KHÔNG CÓ HEADER) ===
+const AuthPage = () => (
+  <div style={{
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f2f5',
+    padding: '20px',
+    fontFamily: 'Arial, sans-serif'
+  }}>
+    <div style={{
+      display: 'flex',
+      gap: '40px',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      maxWidth: '900px',
+      width: '100%'
+    }}>
+      <RegisterForm />
+      <LoginForm />
     </div>
-  );
-};
+  </div>
+);
 
-// ✅ App chính
+// === TRANG CÓ HEADER ===
+const UserPage = () => (
+  <div>
+    <Header />
+    <ProductList />
+  </div>
+);
+
+const ProductDetailPage = () => (
+  <div>
+    <Header />
+    <ProductDetail />
+  </div>
+);
+
+const AdminPage = () => (
+  <div>
+    <Header />
+    <ProductManagement />
+  </div>
+);
+
+// === APP CHÍNH ===
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
 
   if (isLoading) {
-    return <div style={{ textAlign: 'center' }}>Đang tải...</div>;
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '1.2rem',
+        color: '#2c3e50'
+      }}>
+        Đang tải ứng dụng...
+      </div>
+    );
   }
 
   return (
     <BrowserRouter>
-      <h1 style={{ textAlign: 'center', marginTop: '20px' }}>
-        Hệ thống Đánh giá Sản phẩm
-      </h1>
-
       <Routes>
-        {/* --- TRANG CHÍNH --- */}
+        {/* === TRANG CHỦ: TỰ ĐỘNG CHUYỂN === */}
         <Route
           path="/"
           element={
             isAuthenticated ? (
-              <HomeContent />
+              isAdmin ? (
+                <Navigate to="/admin" replace />
+              ) : (
+                <Navigate to="/products" replace />
+              )
             ) : (
-              <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                <RegisterForm />
-                <LoginForm />
-              </div>
+              <AuthPage />
             )
           }
         />
 
-        {/* --- TRANG ADMIN ĐƯỢC BẢO VỆ --- */}
+        {/* === USER === */}
+        <Route path="/products" element={<UserPage />} />
+
+        {/* === CHI TIẾT SẢN PHẨM (CÓ HEADER) === */}
+        <Route path="/product/:id" element={<ProductDetailPage />} />
+
+        {/* === ADMIN === */}
         <Route element={<ProtectedAdminRoute />}>
-          <Route path="/admin" element={<ProductManagement />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
 
-        {/* --- Mặc định chuyển hướng nếu không khớp route --- */}
+        {/* === 404 === */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
